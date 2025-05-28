@@ -8,7 +8,7 @@
 <br/>QR- WEB - PAIR CODE FOR BOT WITH WHISKEYSOCKETS/BAILEYS
 [![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#table-of-contents)
 <p align="center">
-   <a href="https://github.com/Itxxwasi">
+   <a href="https://github.com/Extontony">
     <img src="https://telegra.ph/file/da95ed969f943e4d61ca8.jpg" width="500">
      
 </a>
@@ -16,7 +16,7 @@
 
 
 
-[`ℹ️Contact Owner`](https://wa.me/923192173398)
+[`ℹ️Contact Owner`](https://wa.me/263781206152)
 
 FORK THE REPOSITORY (Repo) 
     <br>
