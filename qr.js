@@ -1,145 +1,108 @@
-// get qr  code of any bot using this ....................
-//coded  by wasi
-
-
 const express = require("express");
-const app = express();
-
-
-
-
-
 const pino = require("pino");
-let { toBuffer } = require("qrcode");
-const path = require('path');
+const { toBuffer } = require("qrcode");
 const fs = require("fs-extra");
+const path = require('path');
 const { Boom } = require("@hapi/boom");
-const PORT = process.env.PORT ||  5000
-const MESSAGE = process.env.MESSAGE ||  `
-┌───⭓『
-❒ *WASI-MD*
-❒ _NOW DEPLOY IT_
-└────────────⭓
-┌───⭓
-❒  • Chat with owner •
-❒ *GitHub:* __https://github.com/WASI-MD_
-❒ *Author:* _wa.me/923192173398_
-❒ *YT:* _https://youtube.com/@wasitech10_
-└────────────⭓
-`
+const { makeid } = require('./id');
 
+// CRITICAL FIX: Use the updated Baileys package
+const { default: makeWASocket, useMultiFileAuthState, Browsers, delay, DisconnectReason } = require("@whiskeysockets/baileys");
 
+// CRITICAL FIX: Make this a Router, not a standalone app, so it works with your main Itxxwasi.js server
+let router = express.Router();
 
+router.get("/", async (req, res) => {
+    // CRITICAL FIX: Create a unique session ID for every single person who requests a QR code
+    // This prevents users from overwriting each other's session files
+    const id = makeid(); 
+    const tempDir = path.join(__dirname, 'temp', `qr_${id}`);
 
+    async function DEVTRIX_QR() {
+        const { state, saveCreds } = await useMultiFileAuthState(tempDir);
+        
+        try {
+            let Devtrix_Socket = makeWASocket({
+                printQRInTerminal: false,
+                logger: pino({ level: "silent" }),
+                // CRITICAL FIX: Use macOS desktop signature to bypass WhatsApp bans
+                browser: Browsers.macOS('Desktop'),
+                auth: state
+            });
 
+            Devtrix_Socket.ev.on("connection.update", async (s) => {
+                const { connection, lastDisconnect, qr } = s;
+                
+                if (qr) {
+                    if (!res.headersSent) {
+                        res.setHeader('Content-Type', 'image/png');
+                        res.end(await toBuffer(qr));
+                    }
+                }
 
+                if (connection == "open") {
+                    await delay(3000);
+                    let user = Devtrix_Socket.user.id;
 
+                    // Read credentials and convert to base64
+                    let CREDS = fs.readFileSync(path.join(tempDir, 'creds.json'));
+                    let Scan_Id = Buffer.from(CREDS).toString('base64');
+                    
+                    // Prepend the Devtrix identifier
+                    let sessionPrefix = "DEVTRIX~" + Scan_Id;
 
+                    let sessionMsg = await Devtrix_Socket.sendMessage(user, { text: sessionPrefix });
+                    
+                    let DEVTRIX_TEXT = `
+*_QR Code Scanned Successfully by Devtrix TECH_*
+*_Made With 🤍_*
+______________________________________
+╔════◇
+║ *『 WOW YOU'VE CHOSEN Devtrix 』*
+║ _You Have Completed the First Step to Deploy a Whatsapp Bot._
+╚════════════════════════╝
+╔═════◇
+║  『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
+║❒ *Owner:* _https://wa.me/263781206152_
+║❒ *Repo:* _https://github.com/extontony/devtrix_
+║❒ *WChannel:* _https://whatsapp.com/channel/0029VaDK8ZUDjiOhwFS1cP2j_
+╚════════════════════════╝
+_____________________________________
+`;
+                    await Devtrix_Socket.sendMessage(user, { text: DEVTRIX_TEXT }, { quoted: sessionMsg });
+                    
+                    await delay(1000);
+                    await Devtrix_Socket.ws.close();
+                    try { await fs.emptyDirSync(tempDir); } catch (e) { console.error("Cleanup error:", e); }
+                }
 
+                Devtrix_Socket.ev.on('creds.update', saveCreds);
 
-
-if (fs.existsSync('./auth_info_baileys')) {
-    fs.emptyDirSync(__dirname + '/auth_info_baileys');
-  };
-  
-  app.use("/", async(req, res) => {
-
-  const { default: WasiWASocket, useMultiFileAuthState, Browsers, delay,DisconnectReason, makeInMemoryStore, } = require("@whiskeysockets/baileys");
-  const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
-  async function WASI() {
-    const { state, saveCreds } = await useMultiFileAuthState(__dirname + '/auth_info_baileys')
-    try {
-      let Smd =WasiWASocket({ 
-        printQRInTerminal: false,
-        logger: pino({ level: "silent" }), 
-        browser: [Browsers.Chrome, 'Windows 10', 'Chrome/89.0.4389.82'],
-        auth: state 
-        });
-
-
-      Smd.ev.on("connection.update", async (s) => {
-        const { connection, lastDisconnect, qr } = s;
-        if (qr) { res.end(await toBuffer(qr)); }
-
-
-        if (connection == "open"){
-          await delay(3000);
-          let user = Smd.user.id;
-
-
-//===========================================================================================
-//===============================  SESSION ID    ===========================================
-//===========================================================================================
-
-          let CREDS = fs.readFileSync(__dirname + '/auth_info_baileys/creds.json')
-          var Scan_Id = Buffer.from(CREDS).toString('base64')
-         // res.json({status:true,Scan_Id })
-          console.log(`
-====================  SESSION ID  ==========================                   
-SESSION-ID ==> ${Scan_Id}
--------------------   SESSION CLOSED   -----------------------
-`)
-
-
-          let msgsss = await Smd.sendMessage(user, { text:  Scan_Id });
-          await Smd.sendMessage(user, { text: MESSAGE } , { quoted : msgsss });
-          await delay(1000);
-          try{ await fs.emptyDirSync(__dirname+'/auth_info_baileys'); }catch(e){}
-
-
+                if (connection === "close") {
+                    let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+                    if (
+                        reason === DisconnectReason.connectionClosed || 
+                        reason === DisconnectReason.connectionLost || 
+                        reason === DisconnectReason.restartRequired || 
+                        reason === DisconnectReason.timedOut
+                    ) {
+                        DEVTRIX_QR().catch(err => console.log("Reconnect error:", err));
+                    } else {
+                        console.log('Connection closed with bot. Please run again.');
+                        try { await fs.emptyDirSync(tempDir); } catch (e) {}
+                    }
+                }
+            });
+        } catch (err) {
+            console.log(err);
+            try { await fs.emptyDirSync(tempDir); } catch (e) {}
         }
-
-        Smd.ev.on('creds.update', saveCreds)
-
-        if (connection === "close") {            
-            let reason = new Boom(lastDisconnect?.error)?.output.statusCode
-            // console.log("Reason : ",DisconnectReason[reason])
-            if (reason === DisconnectReason.connectionClosed) {
-              console.log("Connection closed!")
-             // WASI().catch(err => console.log(err));
-            } else if (reason === DisconnectReason.connectionLost) {
-                console.log("Connection Lost from Server!")
-            //  WASI().catch(err => console.log(err));
-            } else if (reason === DisconnectReason.restartRequired) {
-                console.log("Restart Required, Restarting...")
-              WASI().catch(err => console.log(err));
-            } else if (reason === DisconnectReason.timedOut) {
-                console.log("Connection TimedOut!")
-             // WASI().catch(err => console.log(err));
-            }  else {
-                console.log('Connection closed with bot. Please run again.');
-                console.log(reason)
-              //process.exit(0)
-            }
-          }
-
-
-
-      });
-    } catch (err) {
-        console.log(err);
-       await fs.emptyDirSync(__dirname+'/auth_info_baileys'); 
     }
-  }
 
-
-
-
-
-
-
-
-  WASI().catch(async(err) => {
-    console.log(err)
-    await fs.emptyDirSync(__dirname+'/auth_info_baileys'); 
-
-
-    //// MADE BY ITXWASI
-
+    DEVTRIX_QR().catch(async (err) => {
+        console.log(err);
+        try { await fs.emptyDirSync(tempDir); } catch (e) {}
+    });
 });
 
-
-  })
-
-
-app.listen(PORT, () => console.log(`App listened on port http://localhost:${PORT}`));
+module.exports = router;
