@@ -1,105 +1,106 @@
-const PastebinAPI = require('pastebin-js'),
-pastebin = new PastebinAPI('EMWTMkQAVfJa9kM-MRUrxd5Oku1U7pgL')
-const {makeid} = require('./id');
+const { makeid } = require('./id');
 const QRCode = require('qrcode');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-let router = express.Router()
 const pino = require("pino");
+
+// Import official Baileys library
 const {
-	default: Wasi_Tech,
-	useMultiFileAuthState,
-	jidNormalizedUser,
-	Browsers,
-	delay,
-	makeInMemoryStore,
+    default: makeWASocket,
+    useMultiFileAuthState,
+    Browsers,
+    delay
 } = require("@whiskeysockets/baileys");
 
-function removeFile(FilePath) {
-	if (!fs.existsSync(FilePath)) return false;
-	fs.rmSync(FilePath, {
-		recursive: true,
-		force: true
-	})
-};
-const {
-	readFile
-} = require("node:fs/promises")
-router.get('/', async (req, res) => {
-	const id = makeid();
-	async function WASI_MD_QR_CODE() {
-		const {
-			state,
-			saveCreds
-		} = await useMultiFileAuthState('./temp/' + id)
-		try {
-			let Qr_Code_By_Wasi_Tech = Wasi_Tech({
-				auth: state,
-				printQRInTerminal: false,
-				logger: pino({
-					level: "silent"
-				}),
-				browser: Browsers.macOS("Desktop"),
-			});
+let router = express.Router();
 
-			Qr_Code_By_Wasi_Tech.ev.on('creds.update', saveCreds)
-			Qr_Code_By_Wasi_Tech.ev.on("connection.update", async (s) => {
-				const {
-					connection,
-					lastDisconnect,
-					qr
-				} = s;
-				if (qr) await res.end(await QRCode.toBuffer(qr));
-				if (connection == "open") {
-					await delay(5000);
-					let data = fs.readFileSync(__dirname + `/temp/${id}/creds.json`);
-					await delay(800);
-				   let b64data = Buffer.from(data).toString('base64');
-				   let session = await Qr_Code_By_Wasi_Tech.sendMessage(Qr_Code_By_Wasi_Tech.user.id, { text: '' + b64data });
-	
-				   let WASI_MD_TEXT = `
-*_Session Connected By Wasi Tech_*
+// Helper to clean up temporary credential files
+function removeFile(FilePath) {
+    if (!fs.existsSync(FilePath)) return false;
+    fs.rmSync(FilePath, { recursive: true, force: true });
+}
+
+router.get('/', async (req, res) => {
+    const id = makeid();
+    const tempDir = path.join(__dirname, 'temp', id);
+
+    async function DEVTRIX_QR_CODE() {
+        const { state, saveCreds } = await useMultiFileAuthState(tempDir);
+        
+        try {
+            let Devtrix_Socket = makeWASocket({
+                auth: state,
+                printQRInTerminal: false,
+                logger: pino({ level: "silent" }),
+                // Bypasses WhatsApp's connection block
+                browser: Browsers.macOS("Desktop"),
+            });
+
+            Devtrix_Socket.ev.on('creds.update', saveCreds);
+            Devtrix_Socket.ev.on("connection.update", async (s) => {
+                const { connection, lastDisconnect, qr } = s;
+                
+                if (qr) {
+                    if (!res.headersSent) {
+                        res.setHeader('Content-Type', 'image/png');
+                        await res.end(await QRCode.toBuffer(qr));
+                    }
+                }
+                
+                if (connection === "open") {
+                    await delay(5000);
+                    let data = fs.readFileSync(path.join(tempDir, 'creds.json'));
+                    await delay(800);
+                    
+                    let b64data = Buffer.from(data).toString('base64');
+                    // Adding Devtrix Session Prefix
+                    let sessionPrefix = "DEVTRIX~" + b64data;
+                    
+                    let sessionMsg = await Devtrix_Socket.sendMessage(Devtrix_Socket.user.id, { text: sessionPrefix });
+
+                    let DEVTRIX_TEXT = `
+*_QR Code Connected by Devtrix TECH_*
 *_Made With 🤍_*
 ______________________________________
 ╔════◇
-║ *『AMAZING YOU'VE CHOSEN WASI MD』*
+║ *『 WOW YOU'VE CHOSEN Devtrix 』*
 ║ _You Have Completed the First Step to Deploy a Whatsapp Bot._
 ╚════════════════════════╝
 ╔═════◇
 ║  『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
-║❒ *Ytube:* _youtube.com/@wasitech1
-║❒ *Owner:* _https://wa.me/message/THZ3I25BYZM2E1_
-║❒ *Repo:* _https://github.com/wasixd/WASI-MD_
-║❒ *WaGroup:* _https://chat.whatsapp.com/FF6YuOZTAVB6Lu65cnY5BN_
-║❒ *WaChannel:* _https://whatsapp.com/channel/0029VaDK8ZUDjiOhwFS1cP2j_
-║❒ *Plugins:* _https://github.com/Itxxwasi 
+║❒ *Ytube:* _youtube.com/@wasitech1_
+║❒ *Owner:* _https://wa.me/263781206152_
+║❒ *Repo:* _https://github.com/extontony/devtrix_
+║❒ *Youtube:* _@Exton.zw0_
+║❒ *WChannel:* _https://whatsapp.com/channel/0029VaDK8ZUDjiOhwFS1cP2j_
+║❒ *Plugins:* _https://github.com/extontony/session_
 ╚════════════════════════╝
 _____________________________________
-	
-_Don't Forget To Give Star To My Repo_`
-	 await Qr_Code_By_Wasi_Tech.sendMessage(Qr_Code_By_Wasi_Tech.user.id,{text:WASI_MD_TEXT},{quoted:session})
 
+_Don't Forget To Give Star To My Repo_`;
+                    
+                    await Devtrix_Socket.sendMessage(Devtrix_Socket.user.id, { text: DEVTRIX_TEXT }, { quoted: sessionMsg });
 
-
-					await delay(100);
-					await Qr_Code_By_Wasi_Tech.ws.close();
-					return await removeFile("temp/" + id);
-				} else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
-					await delay(10000);
-					WASI_MD_QR_CODE();
-				}
-			});
-		} catch (err) {
-			if (!res.headersSent) {
-				await res.json({
-					code: "Service is Currently Unavailable"
-				});
-			}
-			console.log(err);
-			await removeFile("temp/" + id);
-		}
-	}
-	return await WASI_MD_QR_CODE()
+                    await delay(100);
+                    await Devtrix_Socket.ws.close();
+                    return removeFile(tempDir);
+                    
+                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
+                    await delay(10000);
+                    DEVTRIX_QR_CODE();
+                }
+            });
+        } catch (err) {
+            if (!res.headersSent) {
+                res.json({ code: "Service is Currently Unavailable" });
+            }
+            console.log(err);
+            removeFile(tempDir);
+        }
+    }
+    
+    return await DEVTRIX_QR_CODE();
 });
-module.exports = router
+
+module.exports = router;
