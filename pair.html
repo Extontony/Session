@@ -181,6 +181,7 @@
           <p style="font-size:12px;color:gray;">Click to copy</p>
         `;
       } catch (error) {
+        console.error('Error:', error);
         pairContainer.innerHTML = '<span style="color:red;font-weight:bold">Error fetching code. Is the server running?</span><br><br>';
       }
     });
