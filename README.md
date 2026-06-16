@@ -1,32 +1,126 @@
-# Devtrix-Session-Generator
-- Kindly star my repo
-- Fork and edit as you wish
-- Deploy to your favourite hosting server eg Heroku or Render or self hosting
+# DEVTRIX Session Generator
 
-<strong>NB:</strong> This repo also generates session ID for all bots using whiskeysockets/baileys
-[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#table-of-contents)
-<br/>QR- WEB - PAIR CODE FOR BOT WITH WHISKEYSOCKETS/BAILEYS
-[![-----------------------------------------------------](https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png)](#table-of-contents)
-<p align="center">
-   <a href="https://github.com/Extontony">
-    <img src="https://telegra.ph/file/da95ed969f943e4d61ca8.jpg" width="500">
-     
-</a>
- <p align="center"><img src="https://profile-counter.glitch.me/{Extontony}/count.svg" alt="Devtrix:: Visitor's Count" /></p>
+A WhatsApp Bot Session Generator using Pairing Code. This application is designed for deployment on **Render**.
 
+## Features
 
+- 🚀 Web-based session generator
+- 📱 WhatsApp pairing code support
+- 🎨 Modern UI with responsive design
+- 🔒 Secure session handling
+- ⚡ Fast and lightweight
 
-[`ℹ️Contact Owner`](https://wa.me/263781206152)
+## Prerequisites
 
-FORK THE REPOSITORY (Repo) 
-    <br>
-<a href="https://github.com/Extontony/SESSION-GENERATOR/fork"><img title="WEB" src="https://img.shields.io/badge/FORK Devtrix-QR?color=black&style=for-the-badge&logo=stackshare"></a>
+- Node.js >= 20.0.0
+- npm >= 9.7.2
 
-Now Deploy
-    <br>
-<a href='https://dashboard.heroku.com/new?template=https://github.com/Extontony/SESSION-GENERATOR' target="_blank"><img alt='DEPLOY' src='https://img.shields.io/badge/-DEPLOY-black?style=for-the-badge&logo=heroku&logoColor=white'/>
+## Installation
 
-[`HERE'S AN EXAMPLE OUTPUT`](https://devtrix-session-test.herokuapp.com)
-# `Owner`
+1. Clone the repository:
+```bash
+git clone https://github.com/Extontony/Session.git
+cd Session
+```
 
- <a href="https://github.com/Extontony"><img src="https://github.com/Extontony.png" width="250" height="250" alt="Extontony Devtrix"/></a>
+2. Install dependencies:
+```bash
+npm install
+```
+
+## Usage
+
+### Local Development
+
+```bash
+npm start
+```
+
+The application will start on `http://localhost:5000` (or the port specified in the `PORT` environment variable).
+
+### Deployment on Render
+
+This project is configured for deployment on [Render](https://render.com).
+
+1. Connect your GitHub repository to Render
+2. Create a new Web Service
+3. Select this repository
+4. Configure the following:
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Environment Variables:**
+     - `PORT`: 5000 (optional, Render provides default)
+     - `NODE_ENV`: production
+
+The deployment will automatically handle all dependencies and start your application.
+
+## API Endpoints
+
+### Get Pairing Code
+```
+GET /code?number=<phone_number>
+```
+
+**Parameters:**
+- `number` (required): Phone number with country code (e.g., 263781206xxx)
+
+**Response:**
+```json
+{
+  "code": "XXXXX-XXXXX"
+}
+```
+
+## Architecture
+
+- **Backend:** Express.js
+- **Frontend:** HTML5 + Vanilla JavaScript
+- **Session Library:** @whiskeysockets/baileys
+- **Dependencies:** Listed in `package.json`
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| PORT | 5000 | Server port |
+| NODE_ENV | development | Environment type |
+| MESSAGE | - | Custom message (optional) |
+
+## File Structure
+
+```
+.
+├── itxxwasi.js          # Main server file
+├── index.html           # Main page
+├── pair.html            # Pairing code page
+├── pair.js              # Pairing logic
+├── qr.js                # QR code generation
+├── wasiqr.js            # WhatsApp QR handling
+├── id.js                # ID generation
+├── package.json         # Dependencies
+├── render.yml           # Render deployment config
+└── README.md            # This file
+```
+
+## Security Notes
+
+- This application is for educational purposes
+- Always use HTTPS in production
+- Never expose sensitive session data
+- Keep your dependencies updated
+
+## License
+
+GPL-3.0
+
+## Author
+
+WasiTech / Extontony
+
+## Support
+
+For issues and feature requests, please create an issue on GitHub.
+
+---
+
+**Note:** This project is optimized for Render deployment. cPanel and traditional hosting are no longer supported.
