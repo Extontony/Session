@@ -1,35 +1,54 @@
 const express = require('express');
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 const pino = require("pino");
 const { makeid } = require('./id');
 
-// CRITICAL FIX: Using the official updated Baileys library
+// Using both Baileys libraries for better compatibility
 const {
     default: makeWASocket,
     useMultiFileAuthState,
     delay,
     makeCacheableSignalKeyStore,
-    Browsers
+    Browsers,
+    DisconnectReason
 } = require("@whiskeysockets/baileys");
 
 let router = express.Router();
 
 // Helper to clean up temporary credential files
 function removeFile(FilePath) {
-    if (!fs.existsSync(FilePath)) return false;
-    fs.rmSync(FilePath, { recursive: true, force: true });
+    try {
+        if (fs.existsSync(FilePath)) {
+            fs.rmSync(FilePath, { recursive: true, force: true });
+        }
+    } catch (err) {
+        console.log("Error removing file:", err.message);
+    }
+}
+
+// Create temp directory if it doesn't exist
+const tempDir = path.join(__dirname, 'temp');
+if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
 }
 
 router.get('/', async (req, res) => {
     const id = makeid();
     let num = req.query.number;
-    const tempDir = path.join(__dirname, 'temp', id); // Safer path generation
+    const userTempDir = path.join(tempDir, id);
+
+    if (!num) {
+        return res.status(400).json({ code: "Phone number is required" });
+    }
 
     async function DEVTRIX_PAIR_CODE() {
-        const { state, saveCreds } = await useMultiFileAuthState(tempDir);
-        
         try {
+            // Ensure temp directory exists
+            await fs.ensureDir(userTempDir);
+            
+            const { state, saveCreds } = await useMultiFileAuthState(userTempDir);
+            
             let Pair_Code_By_Devtrix = makeWASocket({
                 auth: {
                     creds: state.creds,
@@ -37,37 +56,33 @@ router.get('/', async (req, res) => {
                 },
                 printQRInTerminal: false,
                 logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-                // CRITICAL FIX: WhatsApp rejects empty browser arrays now. Using macOS desktop bypasses this.
-                browser: Browsers.macOS('Desktop')
+                browser: Browsers.macOS('Desktop'),
+                syncFullHistory: false,
+                markOnlineOnConnect: true
             });
 
-            if (!Pair_Code_By_Devtrix.authState.creds.registered) {
-                await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
-                const code = await Pair_Code_By_Devtrix.requestPairingCode(num);
-                
-                if (!res.headersSent) {
-                    await res.send({ code });
-                }
-            }
-
+            // Handle creds update
             Pair_Code_By_Devtrix.ev.on('creds.update', saveCreds);
+
+            // Handle connection update
             Pair_Code_By_Devtrix.ev.on("connection.update", async (s) => {
-                const { connection, lastDisconnect } = s;
-                
-                if (connection == "open") {
-                    await delay(5000);
-                    const credsPath = path.join(tempDir, 'creds.json');
-                    let data = fs.readFileSync(credsPath);
-                    await delay(800);
-                    
-                    let b64data = Buffer.from(data).toString('base64');
-                    // Added a branded prefix to your session ID for better bot compatibility
-                    let sessionPrefix = "DEVTRIX~" + b64data; 
+                const { connection, lastDisconnect, qr } = s;
 
-                    let sessionMsg = await Pair_Code_By_Devtrix.sendMessage(Pair_Code_By_Devtrix.user.id, { text: sessionPrefix });
+                if (connection === "connecting") {
+                    // Still connecting, do nothing
+                } else if (connection === "open") {
+                    try {
+                        await delay(3000);
+                        const credsPath = path.join(userTempDir, 'creds.json');
+                        
+                        if (fs.existsSync(credsPath)) {
+                            let data = await fs.readFile(credsPath);
+                            let b64data = Buffer.from(data).toString('base64');
+                            let sessionPrefix = "DEVTRIX~" + b64data;
 
-                    let DEVTRIX_TEXT = `
+                            let sessionMsg = await Pair_Code_By_Devtrix.sendMessage(Pair_Code_By_Devtrix.user.id, { text: sessionPrefix });
+
+                            let DEVTRIX_TEXT = `
 *_Pair Code Connected by Devtrix TECH_*
 *_Made With 🤍_*
 ______________________________________
@@ -88,26 +103,55 @@ _____________________________________
 
 _Don't Forget To Give Star To My Repo_`;
 
-                    await Pair_Code_By_Devtrix.sendMessage(Pair_Code_By_Devtrix.user.id, { text: DEVTRIX_TEXT }, { quoted: sessionMsg });
+                            await Pair_Code_By_Devtrix.sendMessage(Pair_Code_By_Devtrix.user.id, { text: DEVTRIX_TEXT }, { quoted: sessionMsg });
+                        }
 
-                    await delay(100);
-                    await Pair_Code_By_Devtrix.ws.close();
-                    return removeFile(tempDir);
-                    
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
-                    await delay(10000);
-                    DEVTRIX_PAIR_CODE();
+                        await delay(1000);
+                        await Pair_Code_By_Devtrix.ws.close();
+                        removeFile(userTempDir);
+                    } catch (err) {
+                        console.log("Error in connection open:", err.message);
+                        removeFile(userTempDir);
+                    }
+                } else if (connection === "close") {
+                    removeFile(userTempDir);
+                    if (!res.headersSent) {
+                        if (lastDisconnect?.error?.output?.statusCode !== 401) {
+                            await DEVTRIX_PAIR_CODE();
+                        }
+                    }
                 }
             });
+
+            // Request pairing code
+            if (!Pair_Code_By_Devtrix.authState.creds.registered) {
+                await delay(1000);
+                num = num.replace(/[^0-9]/g, '');
+                
+                try {
+                    const code = await Pair_Code_By_Devtrix.requestPairingCode(num);
+                    
+                    if (!res.headersSent) {
+                        res.json({ code: code });
+                    }
+                } catch (err) {
+                    console.log("Pairing code error:", err.message);
+                    if (!res.headersSent) {
+                        res.status(500).json({ code: "Failed to generate pairing code" });
+                    }
+                    removeFile(userTempDir);
+                    await Pair_Code_By_Devtrix.ws.close();
+                }
+            }
         } catch (err) {
-            console.log("Service restarted due to error:", err);
-            removeFile(tempDir);
+            console.log("DEVTRIX_PAIR_CODE error:", err.message);
+            removeFile(userTempDir);
             if (!res.headersSent) {
-                await res.send({ code: "Service Unavailable" });
+                res.status(500).json({ code: "Service Unavailable" });
             }
         }
     }
-    
+
     return await DEVTRIX_PAIR_CODE();
 });
 
